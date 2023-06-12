@@ -82,7 +82,7 @@ class QAgent:
             time.sleep(0.1)
 
             if done:
-                print("Total reward: {total_reward}")
+                print("Total reward:", total_reward)
                 break
 
 example_2 = np.array([
