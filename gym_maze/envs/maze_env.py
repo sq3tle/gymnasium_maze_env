@@ -1,20 +1,22 @@
+import random
+
 import gymnasium as gym
 import numpy as np
 import pygame
 from gymnasium import spaces
 
-from gym_maze.envs.example_mazes import example_1
 
 
 class MazeEnv(gym.Env):
-    def __init__(self, maze=None):
+    def __init__(self, seed=None, size=None):
         super(MazeEnv, self).__init__()
 
-        self.maze = maze if maze is not None else example_1
+        self.size = size if size else 8
+        self.maze = self._gen_maze(seed, size)
 
         pygame.init()
         self.screen = None
-        self.cell_size = 50
+        self.cell_size = int(800/self.size)
         self.width = self.maze.shape[1] * self.cell_size
         self.height = self.maze.shape[0] * self.cell_size
 
@@ -32,7 +34,7 @@ class MazeEnv(gym.Env):
                                                spaces.Discrete(self.maze.shape[1]),
                                                spaces.Box(low=0, high=2,
                                                           shape=self.maze.shape,
-                                                          dtype=np.int32)))
+                                                          dtype=np.uint8)))
 
     def step(self, action):
         self.total_steps += 1
@@ -83,6 +85,40 @@ class MazeEnv(gym.Env):
 
     def _get_obs(self):
         return {"agent": self.current_position, "target": self.end, "maze": self.maze}
+
+    def _gen_maze(self, seed=None, size=8):
+
+        if seed:
+            random.seed(seed)
+
+        maze = np.ones((size, size), dtype=np.int8)
+        start = (0, 1)
+        exit = (size - 1, size - 2)
+        stack = [start]
+
+        DIRS = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        while stack:
+            x, y = stack[-1]
+            maze[x, y] = 0
+            neighbors = [(x + dx, y + dy) for dx, dy in DIRS if 0 <= x + dx < size and 0 <= y + dy < size]
+
+            neighbors = [(nx, ny) for nx, ny in neighbors if maze[nx, ny] == 1 and
+                         len([(nx + dx, ny + dy) for dx, dy in DIRS if 0 <= nx + dx < size and
+                              0 <= ny + dy < size and
+                              maze[nx + dx, ny + dy] == 0]) <= 1]
+
+            if neighbors:
+                next_x, next_y = neighbors[random.randint(0, len(neighbors) - 1)]
+
+                maze[next_x, next_y] = 0
+                stack.append((next_x, next_y))
+            else:
+                stack.pop()
+
+        maze[start] = 2
+        maze[exit] = 3
+
+        return maze
 
     def _gui(self, maze):
         BLACK = (0, 0, 0)
